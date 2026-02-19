@@ -16,14 +16,10 @@ const CONTENT_SELECTORS = [
   ".page-content",
 ];
 
-function getText($: cheerio.CheerioAPI, el: cheerio.Element): string {
-  return $(el).text().replace(/\s+/g, " ").trim();
-}
-
 function findLongestText($: cheerio.CheerioAPI, selector: string): string {
   let best = "";
   $(selector).each((_, el) => {
-    const text = getText($, el);
+    const text = $(el).text().replace(/\s+/g, " ").trim();
     if (text.length > best.length) best = text;
   });
   return best;
