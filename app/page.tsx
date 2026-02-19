@@ -10,6 +10,32 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [actionLabel, setActionLabel] = useState<ActionType>(null);
 
+  async function handleParse() {
+    if (!url.trim()) {
+      setResult("Введите URL статьи.");
+      return;
+    }
+    setLoading(true);
+    setResult("");
+    try {
+      const res = await fetch("/api/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url: url.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setResult(data?.error ?? `Ошибка ${res.status}`);
+        return;
+      }
+      setResult(JSON.stringify({ date: data.date, title: data.title, content: data.content }, null, 2));
+    } catch (e) {
+      setResult("Ошибка запроса: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function handleAction(type: ActionType) {
     if (!url.trim()) {
       setResult("Введите URL статьи.");
@@ -51,6 +77,14 @@ export default function Home() {
       <div className="flex flex-wrap gap-3 mb-8">
         <button
           type="button"
+          onClick={handleParse}
+          disabled={loading}
+          className="px-4 py-2.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          Получить статью
+        </button>
+        <button
+          type="button"
           onClick={() => handleAction("about")}
           disabled={loading}
           className="px-4 py-2.5 rounded-lg bg-slate-700 text-white font-medium hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -79,12 +113,12 @@ export default function Home() {
         Результат
       </label>
       <div
-        className="w-full min-h-[200px] p-4 rounded-lg border border-slate-300 bg-white text-slate-700 whitespace-pre-wrap break-words"
+        className="w-full min-h-[200px] max-h-[60vh] overflow-auto p-4 rounded-lg border border-slate-300 bg-white text-slate-700 whitespace-pre-wrap break-words font-mono text-sm"
         aria-live="polite"
         aria-busy={loading}
       >
-        {loading && actionLabel ? (
-          <span className="text-slate-500">Генерация…</span>
+        {loading ? (
+          <span className="text-slate-500">Загрузка…</span>
         ) : result ? (
           result
         ) : (
