@@ -2,7 +2,7 @@ export default function Home() {
   return (
     <main style={{ padding: "2rem", fontFamily: "system-ui" }}>
       <h1>Привет, Next.js</h1>
-      <p>Минимальное приложение готово к работе.</p>
+      <p>Я изучаю Next.js.</p>
     </main>
   );
 }
