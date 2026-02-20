@@ -7,6 +7,7 @@ type ActionType = "about" | "theses" | "telegram" | null;
 export default function Home() {
   const [url, setUrl] = useState("");
   const [result, setResult] = useState("");
+  const [parsedContent, setParsedContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [actionLabel, setActionLabel] = useState<ActionType>(null);
 
@@ -28,6 +29,7 @@ export default function Home() {
         setResult(data?.error ?? `Ошибка ${res.status}`);
         return;
       }
+      setParsedContent(data.content ?? "");
       setResult(JSON.stringify({ date: data.date, title: data.title, content: data.content }, null, 2));
     } catch (e) {
       setResult("Ошибка запроса: " + (e instanceof Error ? e.message : String(e)));
@@ -56,6 +58,32 @@ export default function Home() {
     setActionLabel(null);
   }
 
+  async function handleTranslate() {
+    if (!parsedContent.trim()) {
+      setResult("Сначала нажмите «Получить статью» и дождитесь загрузки.");
+      return;
+    }
+    setLoading(true);
+    setResult("");
+    try {
+      const res = await fetch("/api/translate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: parsedContent }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setResult(data?.error ?? `Ошибка ${res.status}`);
+        return;
+      }
+      setResult(data.translation ?? "");
+    } catch (e) {
+      setResult("Ошибка запроса: " + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
     <main className="min-h-screen p-6 md:p-10 max-w-2xl mx-auto">
       <h1 className="text-2xl font-semibold text-slate-800 mb-6">
@@ -82,6 +110,14 @@ export default function Home() {
           className="px-4 py-2.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           Получить статью
+        </button>
+        <button
+          type="button"
+          onClick={handleTranslate}
+          disabled={loading}
+          className="px-4 py-2.5 rounded-lg bg-amber-600 text-white font-medium hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          Перевести
         </button>
         <button
           type="button"
