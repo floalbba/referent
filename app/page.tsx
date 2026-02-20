@@ -9,33 +9,23 @@ export default function Home() {
   const [result, setResult] = useState("");
   const [parsedContent, setParsedContent] = useState("");
   const [loading, setLoading] = useState(false);
-  const [actionLabel, setActionLabel] = useState<ActionType>(null);
 
-  async function handleParse() {
-    if (!url.trim()) {
-      setResult("Введите URL статьи.");
-      return;
+  async function getContent(): Promise<string | null> {
+    if (parsedContent.trim()) return parsedContent;
+    if (!url.trim()) return null;
+    const res = await fetch("/api/parse", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ url: url.trim() }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      setResult(data?.error ?? `Ошибка ${res.status}`);
+      return null;
     }
-    setLoading(true);
-    setResult("");
-    try {
-      const res = await fetch("/api/parse", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ url: url.trim() }),
-      });
-      const data = await res.json();
-      if (!res.ok) {
-        setResult(data?.error ?? `Ошибка ${res.status}`);
-        return;
-      }
-      setParsedContent(data.content ?? "");
-      setResult(JSON.stringify({ date: data.date, title: data.title, content: data.content }, null, 2));
-    } catch (e) {
-      setResult("Ошибка запроса: " + (e instanceof Error ? e.message : String(e)));
-    } finally {
-      setLoading(false);
-    }
+    const content = data.content ?? "";
+    setParsedContent(content);
+    return content;
   }
 
   async function handleAction(type: ActionType) {
@@ -44,39 +34,24 @@ export default function Home() {
       return;
     }
     setLoading(true);
-    setActionLabel(type);
-
-    // Заглушка: позже здесь будет парсинг и вызов AI
-    await new Promise((r) => setTimeout(r, 800));
-    const labels: Record<NonNullable<ActionType>, string> = {
-      about: "О чём статья",
-      theses: "Тезисы",
-      telegram: "Пост для Telegram",
-    };
-    setResult(`[${labels[type!]}] Результат для: ${url}\n\nЗдесь будет ответ от AI.`);
-    setLoading(false);
-    setActionLabel(null);
-  }
-
-  async function handleTranslate() {
-    if (!parsedContent.trim()) {
-      setResult("Сначала нажмите «Получить статью» и дождитесь загрузки.");
-      return;
-    }
-    setLoading(true);
     setResult("");
     try {
-      const res = await fetch("/api/translate", {
+      const content = await getContent();
+      if (!content) {
+        setLoading(false);
+        return;
+      }
+      const res = await fetch("/api/ai-action", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: parsedContent }),
+        body: JSON.stringify({ content, action: type, url: url.trim() }),
       });
       const data = await res.json();
       if (!res.ok) {
         setResult(data?.error ?? `Ошибка ${res.status}`);
         return;
       }
-      setResult(data.translation ?? "");
+      setResult(data.result ?? "");
     } catch (e) {
       setResult("Ошибка запроса: " + (e instanceof Error ? e.message : String(e)));
     } finally {
@@ -96,29 +71,16 @@ export default function Home() {
       <input
         type="url"
         value={url}
-        onChange={(e) => setUrl(e.target.value)}
+        onChange={(e) => {
+          setUrl(e.target.value);
+          setParsedContent("");
+        }}
         placeholder="https://example.com/article"
         className="w-full px-4 py-3 rounded-lg border border-slate-300 bg-white text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-400 focus:border-transparent mb-6"
         disabled={loading}
       />
 
       <div className="flex flex-wrap gap-3 mb-8">
-        <button
-          type="button"
-          onClick={handleParse}
-          disabled={loading}
-          className="px-4 py-2.5 rounded-lg bg-emerald-600 text-white font-medium hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          Получить статью
-        </button>
-        <button
-          type="button"
-          onClick={handleTranslate}
-          disabled={loading}
-          className="px-4 py-2.5 rounded-lg bg-amber-600 text-white font-medium hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-        >
-          Перевести
-        </button>
         <button
           type="button"
           onClick={() => handleAction("about")}
