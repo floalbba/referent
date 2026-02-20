@@ -32,3 +32,21 @@ export function getFriendlyAiError(status: number, apiError?: string): string {
   }
   return "Произошла ошибка. Попробуйте позже.";
 }
+
+const ILLUSTRATION_MESSAGES: Record<number, string> = {
+  400: "Нет текста статьи. Сначала загрузите статью.",
+  401: "Неверный HUGGINGFACE_API_KEY. Проверьте .env.local и права токена (Inference Providers).",
+  402: "Недостаточно кредитов Hugging Face. Пополните баланс на huggingface.co/settings/billing.",
+  410: "Модель больше не доступна. Обновите приложение.",
+  502: "Не удалось сгенерировать иллюстрацию. Попробуйте позже.",
+  504: "Превышено время ожидания. Генерация изображения заняла слишком много времени.",
+  503: "HUGGINGFACE_API_KEY не настроен. Добавьте в .env.local.",
+  500: "Произошла ошибка. Проверьте HUGGINGFACE_API_KEY и перезапустите сервер.",
+};
+
+export function getFriendlyIllustrationError(status: number, apiError?: string): string {
+  const mapped = ILLUSTRATION_MESSAGES[status];
+  if (mapped) return mapped;
+  if (apiError && /[\u0400-\u04FF]/.test(apiError)) return apiError;
+  return "Произошла ошибка. Попробуйте позже.";
+}
