@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   const apiKey = raw.trim().replace(/^["']|["']$/g, "").trim();
   if (!apiKey) {
     const message = process.env.VERCEL
-      ? "Перевод доступен только при локальном запуске (ключ в .env.local)."
+      ? "Добавьте OPENROUTER_API_KEY в Vercel: Project → Settings → Environment Variables. Затем Deployments → Redeploy."
       : "API-ключ не найден. Добавьте OPENROUTER_API_KEY в .env.local и перезапустите dev-сервер.";
     return NextResponse.json({ error: message }, { status: 503 });
   }
