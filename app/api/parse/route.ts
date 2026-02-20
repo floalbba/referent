@@ -36,7 +36,10 @@ export async function POST(request: Request) {
       );
     }
 
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15_000);
     const res = await fetch(url, {
+      signal: controller.signal,
       headers: {
         "User-Agent":
           "Mozilla/5.0 (Windows NT 10.0; rv:109.0) Gecko/20100101 Firefox/115.0",
@@ -46,10 +49,11 @@ export async function POST(request: Request) {
       },
       redirect: "follow",
     });
+    clearTimeout(timeout);
 
     if (!res.ok) {
       return NextResponse.json(
-        { error: `Ошибка загрузки: ${res.status} ${res.statusText}` },
+        { error: "ARTICLE_LOAD_FAILED" },
         { status: 422 }
       );
     }
@@ -102,8 +106,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ date, title, content });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Ошибка парсинга";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    return NextResponse.json({ error: "ARTICLE_LOAD_FAILED" }, { status: 500 });
   }
 }

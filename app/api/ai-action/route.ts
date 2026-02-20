@@ -95,7 +95,7 @@ ${content.slice(0, 100_000)}`;
         );
       }
       return NextResponse.json(
-        { error: `OpenRouter: ${res.status} ${errText}` },
+        { error: "Сервис AI временно недоступен. Попробуйте позже." },
         { status: 502 }
       );
     }
@@ -116,8 +116,10 @@ ${content.slice(0, 100_000)}`;
     }
 
     return NextResponse.json({ result });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : "Ошибка AI";
-    return NextResponse.json({ error: message }, { status: 500 });
+  } catch {
+    return NextResponse.json(
+      { error: "Произошла ошибка при обработке. Попробуйте позже." },
+      { status: 500 }
+    );
   }
 }
