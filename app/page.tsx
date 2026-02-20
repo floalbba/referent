@@ -47,7 +47,7 @@ export default function Home() {
     telegram: "Генерирую пост для Telegram…",
   };
 
-  async function handleAction(type: ActionType) {
+  async function handleAction(type: NonNullable<ActionType>) {
     if (!url.trim()) {
       setError("Укажите URL статьи.");
       setResult("");
