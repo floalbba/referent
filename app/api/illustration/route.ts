@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { InferenceClient } from "@huggingface/inference";
+import { chatWithFallback } from "@/lib/openrouter";
 
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const OPENROUTER_MODEL = "deepseek/deepseek-r1-0528:free";
 const HF_IMAGE_MODEL = "black-forest-labs/FLUX.1-schnell";
 
 export async function POST(request: Request) {
@@ -37,41 +36,45 @@ export async function POST(request: Request) {
       );
     }
 
-    // 1. Генерация промпта для изображения через OpenRouter
+    // 1. Генерация промпта для изображения через OpenRouter (с fallback при 429)
     const promptForImage = `Create a short image generation prompt in English (max 150 words) for a text-to-image model like FLUX or Stable Diffusion. The prompt should capture the main visual idea, mood, and key elements of the article. Output ONLY the prompt, no explanations, no quotes.
 
 Article:
 
 ${content.slice(0, 15_000)}`;
 
-    const openRouterRes = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${openRouterKey}`,
-        "Content-Type": "application/json",
-        ...(process.env.VERCEL_URL && {
-          "HTTP-Referer": `https://${process.env.VERCEL_URL}`,
-        }),
-      },
-      body: JSON.stringify({
-        model: OPENROUTER_MODEL,
-        messages: [{ role: "user", content: promptForImage }],
-      }),
-    });
-
-    if (!openRouterRes.ok) {
+    let imagePrompt: string;
+    try {
+      imagePrompt = await chatWithFallback(openRouterKey, [
+        { role: "user", content: promptForImage },
+      ]);
+    } catch (err: unknown) {
+      const e = err as { status?: number };
+      if (e?.status === 401) {
+        return NextResponse.json(
+          { error: "Неверный OPENROUTER_API_KEY. Проверьте .env.local." },
+          { status: 401 }
+        );
+      }
+      if (e?.status === 402) {
+        return NextResponse.json(
+          { error: "Недостаточно средств на OpenRouter. Пополните баланс." },
+          { status: 402 }
+        );
+      }
+      if (e?.status === 429) {
+        return NextResponse.json(
+          { error: "Лимит запросов OpenRouter. Подождите минуту." },
+          { status: 429 }
+        );
+      }
       return NextResponse.json(
         { error: "Не удалось создать промпт для изображения." },
         { status: 502 }
       );
     }
 
-    const openRouterData = (await openRouterRes.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const imagePrompt =
-      openRouterData?.choices?.[0]?.message?.content?.trim() ?? "";
-    if (!imagePrompt) {
+    if (!imagePrompt?.trim()) {
       return NextResponse.json(
         { error: "Пустой промпт от модели." },
         { status: 502 }

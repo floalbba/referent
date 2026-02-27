@@ -1,7 +1,4 @@
-import { NextResponse } from "next/server";
-
-const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODEL = "deepseek/deepseek-r1-0528:free";
+import { chatWithFallback } from "@/lib/openrouter";
 
 const PROMPTS: Record<string, string> = {
   about:
@@ -50,60 +47,8 @@ export async function POST(request: Request) {
 
 ${content.slice(0, 100_000)}`;
 
-    const res = await fetch(OPENROUTER_URL, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        ...(process.env.VERCEL_URL && {
-          "HTTP-Referer": `https://${process.env.VERCEL_URL}`,
-        }),
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        messages: [{ role: "user", content: prompt }],
-      }),
-    });
+    let result = await chatWithFallback(apiKey, [{ role: "user", content: prompt }]);
 
-    if (!res.ok) {
-      const errText = await res.text();
-      if (res.status === 401) {
-        return NextResponse.json(
-          {
-            error:
-              "OpenRouter отклонил ключ. Проверьте OPENROUTER_API_KEY в .env.local (без кавычек и пробелов), перезапустите dev-сервер.",
-          },
-          { status: 401 }
-        );
-      }
-      if (res.status === 402) {
-        return NextResponse.json(
-          {
-            error:
-              "Недостаточно средств на счёте OpenRouter. Пополните баланс: https://openrouter.ai/settings/credits",
-          },
-          { status: 402 }
-        );
-      }
-      if (res.status === 429) {
-        return NextResponse.json(
-          {
-            error:
-              "Лимит запросов. Подождите минуту и попробуйте снова: https://openrouter.ai/settings/integrations",
-          },
-          { status: 429 }
-        );
-      }
-      return NextResponse.json(
-        { error: "Сервис AI временно недоступен. Попробуйте позже." },
-        { status: 502 }
-      );
-    }
-
-    const data = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    let result = data?.choices?.[0]?.message?.content?.trim() ?? "";
     if (!result) {
       return NextResponse.json(
         { error: "Пустой ответ от модели" },
@@ -116,10 +61,38 @@ ${content.slice(0, 100_000)}`;
     }
 
     return NextResponse.json({ result });
-  } catch {
+  } catch (err: unknown) {
+    const e = err as { status?: number };
+    if (e?.status === 401) {
+      return NextResponse.json(
+        {
+          error:
+            "OpenRouter отклонил ключ. Проверьте OPENROUTER_API_KEY в .env.local (без кавычек и пробелов), перезапустите dev-сервер.",
+        },
+        { status: 401 }
+      );
+    }
+    if (e?.status === 402) {
+      return NextResponse.json(
+        {
+          error:
+            "Недостаточно средств на счёте OpenRouter. Пополните баланс: https://openrouter.ai/settings/credits",
+        },
+        { status: 402 }
+      );
+    }
+    if (e?.status === 429) {
+      return NextResponse.json(
+        {
+          error:
+            "Лимит запросов. Подождите минуту и попробуйте снова: https://openrouter.ai/settings/integrations",
+        },
+        { status: 429 }
+      );
+    }
     return NextResponse.json(
-      { error: "Произошла ошибка при обработке. Попробуйте позже." },
-      { status: 500 }
+      { error: "Сервис AI временно недоступен. Попробуйте позже." },
+      { status: 502 }
     );
   }
 }
