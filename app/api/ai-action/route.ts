@@ -1,3 +1,4 @@
+import { NextResponse } from "next/server";
 import { chatWithFallback } from "@/lib/openrouter";
 
 const PROMPTS: Record<string, string> = {
